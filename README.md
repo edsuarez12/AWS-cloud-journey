@@ -44,3 +44,21 @@ I deployed a highly available, fault-tolerant web server architecture utilizing 
 1. **Automation Over Manual Configuration:** Using Launch Templates paired with custom AMIs ensures that configuration drift is eliminated and infrastructure deployment is perfectly repeatable.
 2. **Designing for Failure:** By stretching the Auto Scaling Group across multiple Availability Zones and leveraging ALB health checks, the application remains fully operational even if an entire physical AWS data center encounters an outage.
 3. **Elasticity and Cloud Economics:** Setting dynamic scaling constraints ensures that resources are tightly optimized—scaling out only during high demand and scaling in during low traffic to prevent unexpected operational spend.
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## Project 3: Automated S3 Backup & Corporate Data Lifecycle Governance
+
+### What I Built
+I engineered an automated data retention and cost-optimization pipeline using Amazon S3. Instead of manually auditing and managing stale enterprise data, I implemented automated governance policies that track file versions and migrate data dynamically across storage tiers based on compliance timelines.
+
+### Architecture Timeline & Cloud Economics
+* **Days 1–30 (S3 Standard):** Files are instantly accessible for daily operations.
+* **Day 31 (S3 Glacier Flexible Retrieval):** Data is automatically transitioned to an ultra-low-cost archival tier, cutting storage costs by up to 60-80%.
+* **Day 90 (Automatic Expiration):** Files are permanently deleted to meet compliance retention limits and eliminate unnecessary operational spend.
+
+### Core Takeaways & Skills Enforced
+* **Data Protection:** Enabled S3 Bucket Versioning to guard against accidental deletion or ransomware vectors by maintaining a complete history of object states.
+* **Automation over Manual Audit:** Eliminated administrative overhead by leveraging native cloud lifecycle policies to handle end-to-end data lifecycles.
+* **Financial Optimization:** Applied AWS Cloud Economics principles by matching data value to the most cost-effective storage class over time.
