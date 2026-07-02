@@ -47,18 +47,103 @@ I deployed a highly available, fault-tolerant web server architecture utilizing 
 
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Active Directory & Hybrid Cloud Identity Management Lab
 
-## Project 3: Automated S3 Backup & Corporate Data Lifecycle Governance
+## Project Overview
+This repository documents the deployment of a secure, isolated Active Directory (AD) environment hosted within a cloud infrastructure (AWS). The purpose of this lab was to simulate a real-world enterprise environment by building a central Domain Controller, configuring internal DNS routing across virtual machines, joining a client workstation to the domain, and leveraging PowerShell to automate employee identity onboarding.
 
-### What I Built
-I engineered an automated data retention and cost-optimization pipeline using Amazon S3. Instead of manually auditing and managing stale enterprise data, I implemented automated governance policies that track file versions and migrate data dynamically across storage tiers based on compliance timelines.
+## Key Technical Skills Demonstrated
+* **Cloud Infrastructure:** Multi-instance deployment on AWS EC2, network interface mapping, and security group rule enforcement.
+* **Core Infrastructure & Identity Services:** Active Directory Domain Services (AD DS) configuration, DNS server configuration, and Domain Join implementation.
+* **Automation & DevOps:** Writing and executing structured PowerShell scripts using the `ActiveDirectory` module to process bulk inputs via CSV.
+* **Identity & Access Management (IAM):** Enforcement of Least Privilege, Remote Desktop Group Scope delegation, and Helpdesk identity provisioning lifecycle.
 
-### Architecture Timeline & Cloud Economics
-* **Days 1–30 (S3 Standard):** Files are instantly accessible for daily operations.
-* **Day 31 (S3 Glacier Flexible Retrieval):** Data is automatically transitioned to an ultra-low-cost archival tier, cutting storage costs by up to 60-80%.
-* **Day 90 (Automatic Expiration):** Files are permanently deleted to meet compliance retention limits and eliminate unnecessary operational spend.
+---
 
-### Core Takeaways & Skills Enforced
-* **Data Protection:** Enabled S3 Bucket Versioning to guard against accidental deletion or ransomware vectors by maintaining a complete history of object states.
-* **Automation over Manual Audit:** Eliminated administrative overhead by leveraging native cloud lifecycle policies to handle end-to-end data lifecycles.
-* **Financial Optimization:** Applied AWS Cloud Economics principles by matching data value to the most cost-effective storage class over time.
+## 🤖 AI-Assisted Engineering Disclosure
+While I am currently building my native scripting proficiency, the PowerShell automation script used in this lab was developed using an AI collaborator (LLM) as a technical peer programmer. 
+
+My engineering focus during this phase of the project was on:
+1.  **Architecting the Logic:** Defining the input structure (CSV headers), identifying required data transformations, and mapping out the target Active Directory schema paths (OUs).
+2.  **Code Auditing & Comprehension:** Breaking down the syntax to deeply understand structural concepts like `ForEach` iteration, string manipulation (`SubString`), secure string data masking, and parameter handling inside the AD module.
+3.  **Debugging & Validation:** Managing administrative execution policies, reviewing console output, and verifying real-time database population inside Active Directory Users and Computers.
+
+---
+
+## Architecture & Lab Components
+* **Domain Controller (`DC01`):** Windows Server 2022 instance running AD DS and central DNS.
+    * **Domain Name:** `edwinlab.local`
+    * **Internal Network Scope:** `172.31.x.x`
+* **Client Workstation (`CLIENT01`):** Windows 10/11 Enterprise instance simulating an employee endpoint.
+
+---
+
+## Phases Completed
+
+### Phase 1: Network Topology & DNS Alignment
+1.  **Central Infrastructure Discovery:** Retrieved the internal IPv4 network address of `DC01` to establish it as the primary nameserver for the environment.
+2.  **DNS Routing:** Manually configured `CLIENT01`'s network adapter TCP/IPv4 properties to point its **Preferred DNS Server** directly to the internal IP of `DC01`. 
+3.  **Domain Consolidation:** Successfully executed a secure Domain Join on `CLIENT01`, transitioning the workstation from an isolated local workgroup to a subordinate member of the `EDWINLAB` forest.
+
+### Phase 2: PowerShell Automation for Onboarding (Bulk User Provisioning)
+Instead of using manual graphical management, I engineered an automated pipeline to handle workforce creation at scale.
+
+1.  **Directory Architecture:** Structured a nested hierarchy inside Active Directory Users and Computers (ADUC) by spinning up an Organizational Unit (OU) path: `OU=IT,OU=Corporate-Users,DC=edwinlab,DC=local`.
+2.  **Data Source Design:** Created a mock corporate spreadsheet (`employees.csv`) to mimic data passed down from an HR provisioning platform:
+    ```csv
+    FirstName,LastName,Department,Title
+    John,Doe,IT,Cloud Engineer
+    Jane,Smith,IT,Security Analyst
+    Alex,Martinez,IT,Network Administrator
+    ```
+3.  **The Automation Code:** Written and executed via PowerShell ISE with administrator elevation:
+    ```powershell
+    # Import the Active Directory Module
+    Import-Module ActiveDirectory
+
+    # Read the employee list
+    $employees = Import-Csv -Path "C:\employees.csv"
+
+    # Get current domain configuration dynamically
+    $domainDN = (Get-ADDomain).DistinguishedName
+    $targetOU = "OU=IT,OU=Corporate-Users,$domainDN"
+
+    # Default password for new hires (Encrypted securely as required by AD)
+    $securePassword = ConvertTo-SecureString "Welcome2026!" -AsPlainText -Force
+
+    foreach ($user in $employees) {
+        # Generate username format (e.g., jdoe) and lower-case it
+        $username = ($user.FirstName.SubString(0,1) + $user.LastName).ToLower()
+        $userPrincipalName = "$username@" + (Get-ADDomain).DNSRoot
+        
+        # Check if user already exists to prevent duplication conflicts
+        if (Get-ADUser -Filter "SamAccountName -eq '$username'") {
+            Write-Host "User $username already exists!" -ForegroundColor Yellow
+        } else {
+            # Create the user in Active Directory with mapped CSV parameters
+            New-ADUser -Name "$($user.FirstName) $($user.LastName)" `
+                       -SamAccountName $username `
+                       -UserPrincipalName $userPrincipalName `
+                       -GivenName $user.FirstName `
+                       -Surname $user.LastName `
+                       -Title $user.Title `
+                       -Department $user.Department `
+                       -Path $targetOU `
+                       -AccountPassword $securePassword `
+                       -ChangePasswordAtLogon $true `
+                       -Enabled $true
+                       
+            Write-Host "Successfully created user: $username ($($user.Title))" -ForegroundColor Green
+        }
+    }
+    ```
+
+### Phase 3: Access Control & Integration Testing
+1.  **Identity Verification:** Verified that the script correctly parsed the schema, generated consistent usernames (`jdoe`), assigned titles/departments, and injected them safely into the target `IT` OU container.
+2.  **Access Control Delegation:** Enforced standard hardening principles. Since Active Directory restricts standard employees from remote login capabilities by default, I assumed a Domain Admin role on `CLIENT01` and added the newly created account to the local machine's **Remote Desktop Users** group.
+3.  **Authentication Flow Validation:** Reset the temporary password using standard IT lifecycle procedures and successfully initiated a clean domain user login session for the newly created employee profile on `CLIENT01`.
+
+---
+## Future Roadmap
+* **Phase 4 (Next):** Implementing Group Policy Objects (GPO) to restrict client machine endpoint access (disabling CMD, locking Control Panel, pushing security banners).
+* **Phase 5:** Setting up Event Log Auditing to monitor for failed brute-force RDP logons (SIEM/SOC practice).
