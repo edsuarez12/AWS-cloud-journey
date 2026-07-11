@@ -72,8 +72,8 @@ My engineering focus during this phase of the project was on:
 
 ## Architecture & Lab Components
 * **Domain Controller (`DC01`):** Windows Server 2022 instance running AD DS and central DNS.
-    * **Domain Name:** `edwinlab.local`
-    * **Internal Network Scope:** `172.31.x.x`
+    * **Domain Name:** 
+    * **Internal Network Scope:** 
 * **Client Workstation (`CLIENT01`):** Windows 10/11 Enterprise instance simulating an employee endpoint.
 
 ---
@@ -90,53 +90,10 @@ Instead of using manual graphical management, I engineered an automated pipeline
 
 1.  **Directory Architecture:** Structured a nested hierarchy inside Active Directory Users and Computers (ADUC) by spinning up an Organizational Unit (OU) path: `OU=IT,OU=Corporate-Users,DC=edwinlab,DC=local`.
 2.  **Data Source Design:** Created a mock corporate spreadsheet (`employees.csv`) to mimic data passed down from an HR provisioning platform:
-    ```csv
-    FirstName,LastName,Department,Title
-    John,Doe,IT,Cloud Engineer
-    Jane,Smith,IT,Security Analyst
-    Alex,Martinez,IT,Network Administrator
-    ```
+   
 3.  **The Automation Code:** Written and executed via PowerShell ISE with administrator elevation:
     ```powershell
-    # Import the Active Directory Module
-    Import-Module ActiveDirectory
-
-    # Read the employee list
-    $employees = Import-Csv -Path "C:\employees.csv"
-
-    # Get current domain configuration dynamically
-    $domainDN = (Get-ADDomain).DistinguishedName
-    $targetOU = "OU=IT,OU=Corporate-Users,$domainDN"
-
-    # Default password for new hires (Encrypted securely as required by AD)
-    $securePassword = ConvertTo-SecureString "Welcome2026!" -AsPlainText -Force
-
-    foreach ($user in $employees) {
-        # Generate username format (e.g., jdoe) and lower-case it
-        $username = ($user.FirstName.SubString(0,1) + $user.LastName).ToLower()
-        $userPrincipalName = "$username@" + (Get-ADDomain).DNSRoot
-        
-        # Check if user already exists to prevent duplication conflicts
-        if (Get-ADUser -Filter "SamAccountName -eq '$username'") {
-            Write-Host "User $username already exists!" -ForegroundColor Yellow
-        } else {
-            # Create the user in Active Directory with mapped CSV parameters
-            New-ADUser -Name "$($user.FirstName) $($user.LastName)" `
-                       -SamAccountName $username `
-                       -UserPrincipalName $userPrincipalName `
-                       -GivenName $user.FirstName `
-                       -Surname $user.LastName `
-                       -Title $user.Title `
-                       -Department $user.Department `
-                       -Path $targetOU `
-                       -AccountPassword $securePassword `
-                       -ChangePasswordAtLogon $true `
-                       -Enabled $true
-                       
-            Write-Host "Successfully created user: $username ($($user.Title))" -ForegroundColor Green
-        }
-    }
-    ```
+   
 
 ### Phase 3: Access Control & Integration Testing
 1.  **Identity Verification:** Verified that the script correctly parsed the schema, generated consistent usernames (`jdoe`), assigned titles/departments, and injected them safely into the target `IT` OU container.
@@ -147,3 +104,36 @@ Instead of using manual graphical management, I engineered an automated pipeline
 ## Future Roadmap
 * **Phase 4 (Next):** Implementing Group Policy Objects (GPO) to restrict client machine endpoint access (disabling CMD, locking Control Panel, pushing security banners).
 * **Phase 5:** Setting up Event Log Auditing to monitor for failed brute-force RDP logons (SIEM/SOC practice).
+* ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Project OVERVIEW
+# AWS Security Project: Catching Accidental Public Data Exposure
+
+## 📌 What is This Project?
+This project shows how to use **AWS IAM Access Analyzer** to automatically watch your AWS account and catch security mistakes before hackers do. 
+
+In this lab, I purposely changed an **Amazon SQS Queue** policy to look like it was open to the public. I did this to test if AWS would catch the security flaw and alert me.
+
+---
+
+## 🎯 Why I Did This
+* **To Learn Cloud Security:** Accidental public sharing (like leaving data open to the internet) is the number one cause of cloud data breaches. 
+* **To Test Safely:** I wanted to test a security scanner without actually putting real data at risk. I used a special rule that tricks the scanner into thinking the data is public, while keeping it completely locked down.
+* **To See Automation in Action:** I wanted to watch AWS automatically detect a risk the second a configuration mistake happens, without needing to press a "scan" button.
+
+---
+
+## 🛠️ How I Built It
+
+### Step 1: Making the Fake Public SQS Queue
+I created a message queue and pasted a policy that tells AWS, *"Let everyone on the internet send messages to this queue."* 
+
+However, I added a safety condition (`aws:PrincipalOrgID: o-fakeorgid12`) using a fake company ID. This tricks the security scanner into triggering a public alert, but blocks any actual strangers from accessing it.
+
+
+Step 2: Verifying the Alert
+After saving the bad policy, IAM Access Analyzer automatically evaluated the change in the background. By navigating to Analyzer settings -> Findings, I confirmed that the engine successfully generated an Active Finding flagging the queue as an external threat open to "All Principals."
+
+Step 3: Fixing the Security Vulnerability (Remediation)
+To close the loophole and resolve the finding, I stripped away the dangerous public wildcard (*) and replaced it with an explicit statement that only permits my specific AWS account root user to access the resource.
